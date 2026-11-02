@@ -1,0 +1,33 @@
+name: Check Helix
+
+on:
+  schedule:
+    # GitHub's minimum is 5 minutes. Off the hour marks, which are its busiest.
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: check-helix
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run check
+        env:
+          TELEGRAM_ALERT_BOT_TOKEN: ${{ secrets.TELEGRAM_ALERT_BOT_TOKEN }}
+          TELEGRAM_ALERT_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+        run: bash check.sh
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "helix-uptime-check"
+          git config user.email "helix-uptime-check@users.noreply.github.com"
+          git add state
+          git diff --cached --quiet || { git commit -m "state: $(cat state/status)" && git push; }
